@@ -33,15 +33,39 @@ Michael R. Lyu<sup>2</sup>, Xiangyu Yue<sup>1✉</sup>
 
 It also supports customized modifications, allowing developers and designers to tweak layout and styling with ease. Whether you're prototyping quickly or building pixel-perfect interfaces, ScreenCoder bridges the gap between design and development — just copy, customize, and deploy.
 
+## API Key Configuration
+
+
+ScreenCoder uses multiple AI services (Doubao, Qwen, GPT, Gemini). API keys are managed via environment variables in a `.env` file. For team or open source use, copy `.env.example` to `.env` and fill in your keys:
+
+```
+DOUBAO_API_KEY=your_doubao_api_key_here
+QWEN_API_KEY=your_qwen_api_key_here
+GPT_API_KEY=your_gpt_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+All code modules use the unified `api_config.py` for API key loading. To switch models, use the `ApiService` enum:
+
+```python
+from api_config import get_api_key, ApiService
+client = Doubao(get_api_key(ApiService.DOUBAO))
+# or
+client = Qwen(get_api_key(ApiService.QWEN))
+# or
+client = GPT(get_api_key(ApiService.GPT))
+# or
+client = Gemini(get_api_key(ApiService.GEMINI))
+```
+
 ## Huggingface Demo
-- Try our huggingface demo at [Demo](https://huggingface.co/spaces/Jimmyzheng-10/ScreenCoder)
+Try our huggingface demo at [Demo](https://huggingface.co/spaces/Jimmyzheng-10/ScreenCoder)
 
-- Run the demo locally (download from huggingface space):
+Run the demo locally (download from huggingface space):
 
-  ```bash
-  python app.py
-  ```
-  
+```bash
+python app.py
+```
 ## Demo Videos
 
 A showcase of how **ScreenCoder** transforms UI screenshots into structured, editable HTML/CSS code using a modular multi-agent framework.
@@ -101,8 +125,8 @@ As shown above, our method produces results that are more accurate, visually ali
     pip install -r requirements.txt
     ```
 4. **Configure the model and API key**
-    - ***Choose a generation model***: Set the desired model in `block_parsor.py` and `html_generator.py`. Supported options: Doubao(default), Qwen, GPT, Gemini.
-    - ***Add the API key***: Create a plain-text file (`doubao_api.txt`, `qwen_api.txt`, `gpt_api.txt`, `gemini_api.txt`) in the project root directory that corresponds to your selected model, and paste your API key inside.
+  - ***Choose a generation model***: Set the desired model in `block_parsor.py` and `html_generator.py` by changing the client and using the corresponding `ApiService` enum value. Supported options: Doubao (default), Qwen, GPT, Gemini.
+  - ***Add the API key***: Copy `.env.example` to `.env` and fill in your API keys for each model as environment variables. No need for separate txt files.
 
 ## Usage
 

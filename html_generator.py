@@ -1,3 +1,4 @@
+from api_config import get_api_key, ApiService
 from utils import encode_image, Doubao, Qwen, GPT, Gemini
 from PIL import Image
 import bs4
@@ -54,22 +55,22 @@ PROMPT_DICT = {
 #     Please fill in a complete HTML and Tailwind CSS code to accurately reproduce the given container.
 #     Please ensure that all block layouts, icon styles, sizes, and text information are consistent with the original screenshot,
 #     based on the user's additional conditions. Below is the code template to fill in:
-    
+
 #     <div>
 #     your code here
 #     </div>
-    
+
 #     Only return the code within the <div> and </div> tags.""",
 
 #     "header": f"""This is a screenshot of a container. Here is the user's additional instruction: {user_instruction["header"]}
 #     Please fill in a complete HTML and Tailwind CSS code to accurately reproduce the given container.
 #     Please ensure that all blocks' relative positions, layout, text information, and colors within the bounding box
 #     are consistent with the original screenshot, based on the user's additional conditions. Below is the code template to fill in:
-    
+
 #     <div>
 #     your code here
 #     </div>
-    
+
 #     Only return the code within the <div> and </div> tags.""",
 
 #     "navigation": f"""This is a screenshot of a container. Here is the user's additional instruction: {user_instruction["navigation"]}
@@ -77,11 +78,11 @@ PROMPT_DICT = {
 #     Please ensure that all blocks' relative positions, text layout, and colors within the bounding box
 #     are consistent with the original screenshot, based on the user's additional conditions.
 #     Please use the same icons as in the original screenshot. Below is the code template to fill in:
-    
+
 #     <div>
 #     your code here
 #     </div>
-    
+
 #     Only return the code within the <div> and </div> tags.""",
 
 #     "main content": f"""This is a screenshot of a container. Here is the user's additional instruction: {user_instruction["main content"]}
@@ -90,11 +91,11 @@ PROMPT_DICT = {
 #     text inside the images does not need to be recognized.
 #     Please ensure that all blocks' relative positions, layout, text information, and colors within the bounding box
 #     are consistent with the original screenshot, based on the user's additional conditions. Below is the code template to fill in:
-    
+
 #     <div>
 #     your code here
 #     </div>
-    
+
 #     Only return the code within the <div> and </div> tags."""
 # }
 
@@ -102,17 +103,19 @@ PROMPT_DICT = {
 # PROMPT_refinement = """Here is a prototype image of a webpage. I have an draft HTML file that contains most of the elements and their correct positions, but it has *inaccurate background*, and some missing or wrong elements. Please compare the draft and the prototype image, then revise the draft implementation. Return a single piece of accurate HTML+tail-wind CSS code to reproduce the website. Respond with the content of the HTML+tail-wind CSS code. The current implementation I have is: \n\n [CODE]"""
 
 # Generate code for each component
+
+
 def generate_code(bbox_tree, img_path, bot):
     """generate code for all the leaf nodes in the bounding box tree, return a dictionary: {'id': 'code'}"""
     img = Image.open(img_path)
     code_dict = {}
-    
+
     def _generate_code(node):
         if node["children"] == []:
             bbox = node["bbox"]
             # bbox is already in pixel coordinates [x1, y1, x2, y2]
             cropped_img = img.crop(bbox)
-            
+
             # Select prompt based on node type
             if "type" in node:
                 if node["type"] == "sidebar":
@@ -129,12 +132,13 @@ def generate_code(bbox_tree, img_path, bot):
             else:
                 print("Node type not found")
                 return
-                
+
             try:
                 code = bot.ask(prompt, encode_image(cropped_img))
                 code_dict[node["id"]] = code
             except Exception as e:
-                print(f"Error generating code for {node.get('type', 'unknown')}: {str(e)}")
+                print(
+                    f"Error generating code for {node.get('type', 'unknown')}: {str(e)}")
                 code_dict[node["id"]] = f"<!-- Error: {str(e)} -->"
         else:
             for child in node["children"]:
@@ -144,11 +148,13 @@ def generate_code(bbox_tree, img_path, bot):
     return code_dict
 
 # Generate code for each component in parallel
+
+
 def generate_code_parallel(bbox_tree, img_path, bot):
     """generate code for all the leaf nodes in the bounding box tree, return a dictionary: {'id': 'code'}"""
     code_dict = {}
     t_list = []
-    
+
     def _generate_code_with_retry(node, max_retries=3, retry_delay=2):
         """Generate code with retry mechanism for rate limit errors"""
         try:
@@ -163,13 +169,14 @@ def generate_code_parallel(bbox_tree, img_path, bot):
                         prompt = PROMPT_DICT[node["type"]]
                     else:
                         print(f"Unknown component type: {node['type']}")
-                        code_dict[node["id"]] = f"<!-- Unknown component type: {node['type']} -->"
+                        code_dict[node["id"]
+                                  ] = f"<!-- Unknown component type: {node['type']} -->"
                         return
                 else:
                     print("Node type not found")
                     code_dict[node["id"]] = f"<!-- Node type not found -->"
                     return
-                
+
                 for attempt in range(max_retries):
                     try:
                         code = bot.ask(prompt, encode_image(cropped_img))
@@ -177,11 +184,13 @@ def generate_code_parallel(bbox_tree, img_path, bot):
                         return
                     except Exception as e:
                         if "rate_limit" in str(e).lower() and attempt < max_retries - 1:
-                            print(f"Rate limit hit, retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})")
+                            print(
+                                f"Rate limit hit, retrying in {retry_delay} seconds... (Attempt {attempt + 1}/{max_retries})")
                             time.sleep(retry_delay)
                             retry_delay *= 2  # Exponential backoff
                         else:
-                            print(f"Error generating code for node {node['id']}: {str(e)}")
+                            print(
+                                f"Error generating code for node {node['id']}: {str(e)}")
                             code_dict[node["id"]] = f"<!-- Error: {str(e)} -->"
                             return
         except Exception as e:
@@ -198,14 +207,16 @@ def generate_code_parallel(bbox_tree, img_path, bot):
                 _generate_code(child)
 
     _generate_code(bbox_tree)
-    
+
     # Wait for all threads to complete
     for t in t_list:
         t.join()
-        
+
     return code_dict
 
 # Generate HTML from the bounding box tree
+
+
 def generate_html(bbox_tree, output_file="output.html", img_path="data/test1.png"):
     """
     Generates an HTML file with nested containers based on the bounding box tree.
@@ -284,11 +295,12 @@ def generate_html(bbox_tree, output_file="output.html", img_path="data/test1.png
             current_width = bbox[2] - bbox[0]
             current_height = bbox[3] - bbox[1]
             for child in children:
-                html += process_bbox(child, current_width, current_height, bbox[0], bbox[1], img)
+                html += process_bbox(child, current_width,
+                                     current_height, bbox[0], bbox[1], img)
             html += '''
                 </div>
             '''
-        
+
         # Close the box div
         html += '''
             </div>
@@ -304,7 +316,8 @@ def generate_html(bbox_tree, output_file="output.html", img_path="data/test1.png
 
     html_content = html_template_start
     for child in root_children:
-        html_content += process_bbox(child, root_width, root_height, root_x, root_y, img)
+        html_content += process_bbox(child, root_width,
+                                     root_height, root_x, root_y, img)
     html_content += html_template_end
 
     soup = bs4.BeautifulSoup(html_content, 'html.parser')
@@ -314,6 +327,8 @@ def generate_html(bbox_tree, output_file="output.html", img_path="data/test1.png
         f.write(html_content)
 
 # Substitute the code in the html file
+
+
 def code_substitution(html_file, code_dict):
     """substitute the code in the html file"""
     with open(html_file, "r") as f:
@@ -346,26 +361,26 @@ def code_substitution(html_file, code_dict):
 #     except Exception as e:
 #         print(f"An error occurred during HTML refinement: {e}")
 
+
 # Main
 if __name__ == "__main__":
     import json
     import time
     from PIL import Image
-    
+
     # Load bboxes from block_parsing.py output
     boxes_data = json.load(open("data/tmp/test1_bboxes.json"))
-
 
     img_path = "data/input/test1.png"
     with Image.open(img_path) as img:
         width, height = img.size
-    
+
     # Create root node with actual image dimensions
     root = {
         "bbox": [0, 0, width, height],  # Use actual image dimensions
         "children": []
     }
-    
+
     # Add each region as a child with its type
     for component_name, norm_bbox in boxes_data.items():
         # The coordinates from block_parsor are normalized to 1000x1000
@@ -374,21 +389,21 @@ if __name__ == "__main__":
         y1 = int(norm_bbox[1] * height / 1000)
         x2 = int(norm_bbox[2] * width / 1000)
         y2 = int(norm_bbox[3] * height / 1000)
-        
+
         child = {
             "bbox": [x1, y1, x2, y2],
             "children": [],
             "type": component_name
         }
         root["children"].append(child)
-    
+
     # Assign IDs to all nodes
     def assign_id(node, id):
         node["id"] = id
         for child in node.get("children", []):
             id = assign_id(child, id+1)
         return id
-    
+
     assign_id(root, 0)
 
     # print(root)
@@ -396,17 +411,20 @@ if __name__ == "__main__":
     generate_html(root, 'data/tmp/test1_layout.html')
 
     # Initialize the bot
-    # Change your model & API ket path according to your needs
-    bot = Doubao("doubao_api.txt", model = "doubao-1.5-thinking-vision-pro-250428")
+    # Get Doubao API key from unified config
+    doubao_api_key = get_api_key(ApiService.DOUBAO)
+    bot = Doubao(doubao_api_key, model="doubao-1.5-thinking-vision-pro-250428")
+    # You can switch model by changing the client and API key source
+    # For example: Qwen(get_api_key(ApiService.QWEN)), GPT(get_api_key(ApiService.GPT)), Gemini(get_api_key(ApiService.GEMINI))
     # bot = Qwen("qwen_api.txt", model="qwen2.5-vl-72b-instruct")
     # bot = GPT("gpt_api.txt", model="gpt-4o")
     # bot = Gemini("gemini_api.txt", model="gemini-1.5-flash-latest")
-    
+
     # Generate code for each component
     # code_dict = generate_code(root, img_path, bot)
 
     code_dict = generate_code_parallel(root, img_path, bot)
-    
+
     # Substitute the generated code into the HTML
     code_substitution('data/tmp/test1_layout.html', code_dict)
 
