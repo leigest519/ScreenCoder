@@ -83,6 +83,7 @@ As shown above, our method produces results that are more accurate, visually ali
 - `html_generator.py`: Takes the detected component data and generates a complete HTML layout with generated code for each module.
 - `image_replacer.py`: A script to replace placeholder divs in the final HTML with actual cropped images.
 - `mapping.py`: Maps the detected UIED components to logical page regions.
+- `docs/asset-aware-html-generation.md`: Design plan for asset-aware screenshot-to-HTML generation and handoff to a reference UI asset system.
 - `requirements.txt`: Lists all the necessary Python dependencies for the project.
 - `doubao_api.txt`: API key file for the Doubao model (should be kept private and is included in `.gitignore`).
 
@@ -111,6 +112,64 @@ As shown above, our method produces results that are more accurate, visually ali
 ## Usage
 
 The typical workflow is a multi-step process as follows:
+
+### Convert a Custom Screenshot to a Rough Asset-Aware HTML Preview
+
+For the current ScreenCoder handoff workflow, use the asset-aware preview path when you need a fast end-to-end result from a UI design image without calling a model API. It reads the input image size, builds a semantic UI schema, extracts crop-source assets, and writes a standalone HTML preview plus handoff files for `web-ui-reference`:
+
+```bash
+python screen_to_schema.py \
+  --image data/input/menu.png \
+  --output data/run/menu/screen-schema.json \
+  --preview data/run/menu/index.html \
+  --handoff data/run/menu/handoff.md \
+  --reference-json data/run/menu/reference-handoff.json
+```
+
+Optional hosted OCR can enrich region content with recognized text blocks. The preferred open-source-model path is PaddleOCR PP-OCRv4 hosted on Replicate:
+
+```bash
+export REPLICATE_API_TOKEN=...
+python screen_to_schema.py \
+  --image data/input/menu.png \
+  --ocr-provider replicate_paddleocr \
+  --ocr-output data/run/menu/ocr.json \
+  --output data/run/menu/screen-schema.json \
+  --preview data/run/menu/index.html \
+  --handoff data/run/menu/handoff.md \
+  --reference-json data/run/menu/reference-handoff.json
+```
+
+If the token is missing, ScreenCoder records an OCR manual gate in the schema handoff notes and still writes the non-OCR preview package.
+
+Key outputs:
+
+- `screen-schema.json`: structured page/region/component/asset-role schema.
+- `asset-crops/`: source-image snippets for `crop-source` roles.
+- `index.html`: rough standalone HTML/CSS reconstruction preview.
+- `handoff.md` and `reference-handoff.json`: component/asset intake notes for `web-ui-reference`.
+
+This path is intentionally approximate: ScreenCoder identifies and packages an editable first draft; `web-ui-reference` remains responsible for final reusable component implementations, asset licensing, visual regression, and Godot contracts.
+
+### Convert a Custom Screenshot through the Legacy Model/UIED Pipeline
+
+Put the target screenshot in the project, for example:
+
+```bash
+mkdir -p data/input
+cp your-menu.png data/input/menu.png
+```
+
+Then run the unified pipeline:
+
+```bash
+python screen_to_html.py \
+  --image data/input/menu.png \
+  --work-dir data/run/menu \
+  --api-key doubao_api.txt
+```
+
+The final HTML is written to `data/run/menu/menu_layout_final.html`. Intermediate files in the same directory include detected layout boxes, gray placeholder HTML, UIED component boxes, mapping overlays, and cropped image assets.
 
 1.  **Initial Generation with Placeholders:**
     Run the Python script to generate the initial HTML code for a given screenshot.
@@ -157,5 +216,3 @@ The typical workflow is a multi-step process as follows:
 ## Acknowledgements
 
 This project builds upon several outstanding open-source efforts. We would like to thank the authors and contributors of the following projects: [UIED](https://github.com/MulongXie/UIED), [DCGen](https://github.com/WebPAI/DCGen), [Design2Code](https://github.com/NoviScl/Design2Code)
-
-

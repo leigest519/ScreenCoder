@@ -1,13 +1,18 @@
 import os
 import time
-from openai import OpenAI
-import google.generativeai as genai
-from volcenginesdkarkruntime import Ark
 import base64
 import io
 from PIL import Image, ImageDraw
 import cv2
 import numpy as np
+
+
+def _missing_dependency(package_name, install_name=None):
+    install_name = install_name or package_name
+    raise ModuleNotFoundError(
+        f"Missing optional provider dependency '{package_name}'. "
+        f"Install it with `pip install {install_name}` before using this provider."
+    )
 
 
 def encode_image(image):
@@ -227,6 +232,10 @@ class Bot:
 class Doubao(Bot):
     def __init__(self, key_path, patience=3, model="doubao-1.5-thinking-vision-pro-250428") -> None:
         super().__init__(key_path, patience)
+        try:
+            from volcenginesdkarkruntime import Ark
+        except ModuleNotFoundError:
+            _missing_dependency("volcenginesdkarkruntime", "volcengine-python-sdk[ark]")
         self.client = Ark(api_key=self.key)
         self.model = model
     
@@ -270,6 +279,10 @@ class Doubao(Bot):
 class Qwen(Bot):
     def __init__(self, key_path, patience=3, model="qwen2.5-vl-32b-instruct") -> None:
         super().__init__(key_path, patience)
+        try:
+            from openai import OpenAI
+        except ModuleNotFoundError:
+            _missing_dependency("openai")
         self.client = OpenAI(api_key=self.key, base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
         self.name = model
 
@@ -309,6 +322,10 @@ class Qwen(Bot):
 class GPT(Bot):
     def __init__(self, key_path, patience=3, model="gpt-4o") -> None:
         super().__init__(key_path, patience)
+        try:
+            from openai import OpenAI
+        except ModuleNotFoundError:
+            _missing_dependency("openai")
         self.client = OpenAI(api_key=self.key)
         self.name="gpt4"
         self.model = model
@@ -354,6 +371,10 @@ class GPT(Bot):
 class Gemini(Bot):
     def __init__(self, key_path, patience=3, model="gemini-1.5-flash-latest") -> None:
         super().__init__(key_path, patience)
+        try:
+            import google.generativeai as genai
+        except ModuleNotFoundError:
+            _missing_dependency("google.generativeai", "google-generativeai")
         GOOGLE_API_KEY= self.key
         genai.configure(api_key=GOOGLE_API_KEY)
         self.name = "Gemini"

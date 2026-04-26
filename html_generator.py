@@ -1,5 +1,6 @@
 from utils import encode_image, Doubao, Qwen, GPT, Gemini
 from PIL import Image
+import argparse
 import bs4
 from threading import Thread
 import time
@@ -346,17 +347,7 @@ def code_substitution(html_file, code_dict):
 #     except Exception as e:
 #         print(f"An error occurred during HTML refinement: {e}")
 
-# Main
-if __name__ == "__main__":
-    import json
-    import time
-    from PIL import Image
-    
-    # Load bboxes from block_parsing.py output
-    boxes_data = json.load(open("data/tmp/test1_bboxes.json"))
-
-
-    img_path = "data/input/test1.png"
+def build_layout_from_bboxes(boxes_data, img_path):
     with Image.open(img_path) as img:
         width, height = img.size
     
@@ -382,7 +373,6 @@ if __name__ == "__main__":
         }
         root["children"].append(child)
     
-    # Assign IDs to all nodes
     def assign_id(node, id):
         node["id"] = id
         for child in node.get("children", []):
@@ -390,14 +380,44 @@ if __name__ == "__main__":
         return id
     
     assign_id(root, 0)
+    return root
 
-    # print(root)
+
+def create_bot(provider, api_key, model):
+    if provider == "doubao":
+        return Doubao(api_key, model=model)
+    if provider == "qwen":
+        return Qwen(api_key, model=model)
+    if provider == "gpt":
+        return GPT(api_key, model=model)
+    if provider == "gemini":
+        return Gemini(api_key, model=model)
+    raise ValueError(f"Unsupported provider: {provider}")
+
+
+# Main
+if __name__ == "__main__":
+    import json
+
+    parser = argparse.ArgumentParser(description="Generate HTML for detected layout regions.")
+    parser.add_argument("--image", default="data/input/test1.png", help="Input screenshot path.")
+    parser.add_argument("--bboxes", default="data/tmp/test1_bboxes.json", help="Region bbox JSON from block_parsor.py.")
+    parser.add_argument("--output", default="data/tmp/test1_layout.html", help="Output gray placeholder HTML path.")
+    parser.add_argument("--api-key", default="doubao_api.txt", help="API key file for the selected model.")
+    parser.add_argument("--provider", default="doubao", choices=["doubao", "qwen", "gpt", "gemini"], help="Vision model provider.")
+    parser.add_argument("--model", default="doubao-1.5-thinking-vision-pro-250428", help="Vision model name.")
+    args = parser.parse_args()
+
+    boxes_data = json.load(open(args.bboxes))
+    img_path = args.image
+    root = build_layout_from_bboxes(boxes_data, img_path)
+
     # Generate initial HTML layout
-    generate_html(root, 'data/tmp/test1_layout.html')
+    generate_html(root, args.output)
 
     # Initialize the bot
     # Change your model & API ket path according to your needs
-    bot = Doubao("doubao_api.txt", model = "doubao-1.5-thinking-vision-pro-250428")
+    bot = create_bot(args.provider, args.api_key, args.model)
     # bot = Qwen("qwen_api.txt", model="qwen2.5-vl-72b-instruct")
     # bot = GPT("gpt_api.txt", model="gpt-4o")
     # bot = Gemini("gemini_api.txt", model="gemini-1.5-flash-latest")
@@ -408,7 +428,7 @@ if __name__ == "__main__":
     code_dict = generate_code_parallel(root, img_path, bot)
     
     # Substitute the generated code into the HTML
-    code_substitution('data/tmp/test1_layout.html', code_dict)
+    code_substitution(args.output, code_dict)
 
     # Refine the html file
     # html_refinement('data/tmp/test1_layout.html', 'data/tmp/test1_layout_refined.html', img_path, bot)

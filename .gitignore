@@ -6,6 +6,15 @@ dist/
 # Environments
 .env
 .venv
+venv/
+
+# Python caches / local test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+data/run/
 
 # API keys
 doubao_api.txt
+.gitnexus

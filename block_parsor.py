@@ -1,3 +1,4 @@
+import argparse
 import os
 import cv2
 import json
@@ -161,7 +162,7 @@ def parse_bboxes(bbox_input: str, image_path: str) -> dict[str, tuple[int, int, 
     print("Final parsed bboxes:", bboxes)
     return bboxes
 
-def draw_bboxes(image_path: str, bboxes: dict[str, tuple[int, int, int, int]]) -> str:
+def draw_bboxes(image_path: str, bboxes: dict[str, tuple[int, int, int, int]], output_path: str | None = None) -> str:
     """Draw bounding boxes on image and save with different colors for each component"""
     image = cv2.imread(image_path)
     if image is None:
@@ -191,13 +192,13 @@ def draw_bboxes(image_path: str, bboxes: dict[str, tuple[int, int, int, int]]) -
         cv2.putText(image, component, (x_min, y_min - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
     
-    # Output directory
-    output_dir = "data/tmp"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Get the original filename without path
-    original_filename = os.path.basename(image_path)
-    output_path = os.path.join(output_dir, os.path.splitext(original_filename)[0] + "_with_bboxes.png")
+    if output_path is None:
+        output_dir = "data/tmp"
+        os.makedirs(output_dir, exist_ok=True)
+        original_filename = os.path.basename(image_path)
+        output_path = os.path.join(output_dir, os.path.splitext(original_filename)[0] + "_with_bboxes.png")
+    else:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     if cv2.imwrite(output_path, image):
         print(f"Successfully saved annotated image: {output_path}")
@@ -205,14 +206,15 @@ def draw_bboxes(image_path: str, bboxes: dict[str, tuple[int, int, int, int]]) -
     print("Error: Failed to save image")
     return ""
 
-def save_bboxes_to_json(bboxes: dict[str, tuple[int, int, int, int]], image_path: str) -> str:
+def save_bboxes_to_json(bboxes: dict[str, tuple[int, int, int, int]], image_path: str, json_path: str | None = None) -> str:
     """Save bounding boxes information to a JSON file"""
-    # Output directory
-    output_dir = "data/tmp"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    original_filename = os.path.basename(image_path)
-    json_path = os.path.join(output_dir, os.path.splitext(original_filename)[0] + "_bboxes.json")
+    if json_path is None:
+        output_dir = "data/tmp"
+        os.makedirs(output_dir, exist_ok=True)
+        original_filename = os.path.basename(image_path)
+        json_path = os.path.join(output_dir, os.path.splitext(original_filename)[0] + "_bboxes.json")
+    else:
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
     
     bboxes_dict = {k: list(v) for k, v in bboxes.items()}
     
@@ -310,8 +312,15 @@ def save_bboxes_to_json(bboxes: dict[str, tuple[int, int, int, int]], image_path
     
     
 if __name__ == "__main__":
-    image_path = DEFAULT_IMAGE_PATH
-    api_path = DEFAULT_API_PATH
+    parser = argparse.ArgumentParser(description="Detect major layout regions in a webpage screenshot.")
+    parser.add_argument("--image", default=DEFAULT_IMAGE_PATH, help="Input screenshot path.")
+    parser.add_argument("--api-key", default=DEFAULT_API_PATH, help="API key file for the selected vision model.")
+    parser.add_argument("--json", default=None, help="Output JSON path for detected bboxes.")
+    parser.add_argument("--debug", default=None, help="Output debug image path with drawn bboxes.")
+    args = parser.parse_args()
+
+    image_path = args.image
+    api_path = args.api_key
 
     print("=== Starting Simple Component Detection ===")
     print(f"Input image: {image_path}")
@@ -333,8 +342,8 @@ if __name__ == "__main__":
         print(f"Found bounding boxes for components: {list(bboxes.keys())}")
         print(f"Total components detected: {len(bboxes)}")
         
-        json_path = save_bboxes_to_json(bboxes, image_path)
-        draw_bboxes(image_path, bboxes)
+        json_path = save_bboxes_to_json(bboxes, image_path, args.json)
+        draw_bboxes(image_path, bboxes, args.debug)
         
         print(f"\n=== Results ===")
         for component, bbox in bboxes.items():

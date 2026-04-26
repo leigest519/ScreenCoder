@@ -1,8 +1,10 @@
 from os.path import join as pjoin
+import argparse
 import cv2
 import os
 import numpy as np
 import multiprocessing
+from pathlib import Path
 
 
 def resize_height_by_longest_edge(img_path, resize_length=800):
@@ -30,6 +32,13 @@ def color_tips():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Run UIED component detection for one screenshot.")
+    parser.add_argument("--image", default="data/input/test4.png", help="Input screenshot path.")
+    parser.add_argument("--output-root", default="data/tmp", help="Output root directory.")
+    parser.add_argument("--output-json", default=None, help="Expected or copied output JSON path.")
+    parser.add_argument("--show", action="store_true", help="Show debug windows when supported.")
+    args = parser.parse_args()
+
     # Set multiprocessing start method to 'spawn' for macOS compatibility.
     # This must be done at the very beginning of the main block.
     try:
@@ -61,14 +70,14 @@ if __name__ == '__main__':
     key_params = {'min-grad':10, 'ffl-block':5, 'min-ele-area':50,
                   'merge-contained-ele':True, 'merge-line-to-paragraph':False, 'remove-bar':True}
 
-    # set input image path
-    input_path_img = 'data/input/test4.png'
-    output_root = 'data/tmp'
+    input_path_img = args.image
+    output_root = args.output_root
 
     resized_height = resize_height_by_longest_edge(input_path_img, resize_length=800)
-    color_tips()
+    if args.show:
+        color_tips()
 
-    is_ip = False
+    is_ip = True
     is_clf = False
     is_ocr = False
     is_merge = False
@@ -90,7 +99,7 @@ if __name__ == '__main__':
             classifier['Elements'] = CNN('Elements')
             # classifier['Noise'] = CNN('Noise')
         ip.compo_detection(input_path_img, output_root, key_params,
-                           classifier=classifier, resize_by_height=resized_height, show=False)
+                           classifier=classifier, resize_by_height=resized_height, show=args.show)
 
     if is_merge:
         import detect_merge.merge as merge
@@ -99,4 +108,13 @@ if __name__ == '__main__':
         compo_path = pjoin(output_root, 'ip', str(name) + '.json')
         ocr_path = pjoin(output_root, 'ocr', str(name) + '.json')
         merge.merge(input_path_img, compo_path, ocr_path, pjoin(output_root, 'merge'),
-                    is_remove_bar=key_params['remove-bar'], is_paragraph=key_params['merge-line-to-paragraph'], show=True)
+                    is_remove_bar=key_params['remove-bar'], is_paragraph=key_params['merge-line-to-paragraph'], show=args.show)
+
+    if args.output_json:
+        expected = Path(output_root) / "ip" / f"{Path(input_path_img).stem}.json"
+        requested = Path(args.output_json)
+        if expected.exists() and expected.resolve() != requested.resolve():
+            requested.parent.mkdir(parents=True, exist_ok=True)
+            requested.write_text(expected.read_text())
+        if not requested.exists():
+            raise FileNotFoundError(f"UIED output JSON was not created: {requested}")
