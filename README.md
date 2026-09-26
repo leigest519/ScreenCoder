@@ -15,6 +15,12 @@ Michael R. Lyu<sup>2</sup>, Xiangyu Yue<sup>1✉</sup>
       alt="Accepted at EMNLP 2026 Main Conference"
     />
   </a>
+  <a href="https://jimmyzhengyz.github.io/ScreenCoder-Project-Page/">
+    <img
+      src="https://img.shields.io/badge/Project-Page-blue?logo=googlechrome&logoColor=white"
+      alt="ScreenCoder Project Page"
+    />
+  </a>
   <a href="https://huggingface.co/spaces/Jimmyzheng-10/ScreenCoder">
     <img 
         src="https://img.shields.io/badge/HF-Demo-yellow?logo=huggingface&logoColor=yellow" 
